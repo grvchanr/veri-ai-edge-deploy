@@ -1,12 +1,3 @@
-/**
- * API service layer for the VERI-AI EDGE dashboard.
- *
- * Endpoints:
- *   • uploadVideo()   – POST /analyze/video
- *   • analyzeText()  – POST /analyze/text
- *   • checkHealth()  – GET  /health
- */
-
 import axios, {
   AxiosInstance,
   AxiosError,
@@ -14,19 +5,27 @@ import axios, {
 } from 'axios';
 
 /* -------------------------------------------------------------------------- */
-/* Axios instance                                                              */
+/* Axios instance                                                             */
 /* -------------------------------------------------------------------------- */
 const api: AxiosInstance = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000',
   timeout: 60000,
   headers: {
     Accept: 'application/json',
-    'ngrok-skip-browser-warning': 'true',
   },
 });
 
 /* -------------------------------------------------------------------------- */
-/* Shared types                                                                */
+/* 🔥 GLOBAL NGROK FIX (MOST IMPORTANT PART)                                  */
+/* -------------------------------------------------------------------------- */
+api.interceptors.request.use((config) => {
+  config.headers = config.headers || {};
+  config.headers['ngrok-skip-browser-warning'] = 'true';
+  return config;
+});
+
+/* -------------------------------------------------------------------------- */
+/* Types                                                                      */
 /* -------------------------------------------------------------------------- */
 export interface ApiError extends Error {
   status?: number;
@@ -34,17 +33,11 @@ export interface ApiError extends Error {
 }
 
 export interface AnalysisResult {
-  /** Confidence score as a percentage (0-100). */
   confidence: number;
-  /** Verdict:  "authentic" | "suspicious" | "deepfake" */
   verdict: 'authentic' | 'suspicious' | 'deepfake';
-  /** Decision from the backend engine */
   decision: { label: string; confidence: number };
-  /** Human-readable explanation */
   reason: string;
-  /** Processing step labels */
   processing_steps: string[];
-  /** Structured metrics for the results panel */
   metrics: {
     framesAnalyzed?: number;
     processingTime?: number;
@@ -52,11 +45,8 @@ export interface AnalysisResult {
     modelUsed: string;
     inferenceDevice: string;
   };
-  /** Analysis time in seconds */
   analysis_time_seconds?: number;
-  /** Phishing score (text only, 0-100) */
   phishing_score?: number;
-  /** Detected faces with bounding boxes */
   faces?: Array<{ bbox: number[]; score: number }>;
 }
 
@@ -76,16 +66,16 @@ export interface FrameAnalysisResult {
 }
 
 export interface HealthResponse {
-  status: string;        // "ok" | "error"
-  edgeMode: string;      // "enabled" | "disabled"
+  status: string;
+  edgeMode: string;
   inferenceDevice: string;
-  latency: number;       // ms
+  latency: number;
   model?: string;
   liveStreamEnabled?: boolean;
 }
 
 /* -------------------------------------------------------------------------- */
-/* Helper – typed ApiError                                                    */
+/* Helper                                                                     */
 /* -------------------------------------------------------------------------- */
 function createApiError(message: string, err: AxiosError): ApiError {
   const apiError = new Error(message) as ApiError;
@@ -95,7 +85,7 @@ function createApiError(message: string, err: AxiosError): ApiError {
 }
 
 /* -------------------------------------------------------------------------- */
-/* uploadVideo – POST /analyze/video                                          */
+/* uploadVideo                                                                */
 /* -------------------------------------------------------------------------- */
 export async function uploadVideo(
   file: File,
@@ -107,7 +97,9 @@ export async function uploadVideo(
 
   try {
     const response = await api.post<AnalysisResult>('/analyze/video', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
       cancelToken: cancelSource?.token,
       onUploadProgress: (e) => {
         if (e.total && onProgress) {
@@ -125,7 +117,7 @@ export async function uploadVideo(
 }
 
 /* -------------------------------------------------------------------------- */
-/* analyzeText – POST /analyze/text (JSON body)                              */
+/* analyzeText                                                                */
 /* -------------------------------------------------------------------------- */
 export async function analyzeText(
   text: string,
@@ -136,7 +128,9 @@ export async function analyzeText(
       '/analyze/text',
       { text },
       {
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+        },
         cancelToken: cancelSource?.token,
       }
     );
@@ -150,7 +144,7 @@ export async function analyzeText(
 }
 
 /* -------------------------------------------------------------------------- */
-/* analyzeTextFile – POST /analyze/text (multipart file upload)              */
+/* analyzeTextFile                                                            */
 /* -------------------------------------------------------------------------- */
 export async function analyzeTextFile(
   file: File,
@@ -161,7 +155,9 @@ export async function analyzeTextFile(
 
   try {
     const response = await api.post<AnalysisResult>('/analyze/text', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
       cancelToken: cancelSource?.token,
     });
     return response.data;
@@ -173,7 +169,7 @@ export async function analyzeTextFile(
 }
 
 /* -------------------------------------------------------------------------- */
-/* checkHealth – GET /health                                                  */
+/* checkHealth                                                                */
 /* -------------------------------------------------------------------------- */
 export async function checkHealth(
   cancelSource?: CancelTokenSource
@@ -192,7 +188,7 @@ export async function checkHealth(
 }
 
 /* -------------------------------------------------------------------------- */
-/* analyzeFrame – POST /analyze/frame (live webcam)                           */
+/* analyzeFrame                                                               */
 /* -------------------------------------------------------------------------- */
 export async function analyzeFrame(
   imageBase64: string
@@ -202,7 +198,9 @@ export async function analyzeFrame(
       '/analyze/frame',
       { image: imageBase64 },
       {
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+        },
       }
     );
     return response.data;
